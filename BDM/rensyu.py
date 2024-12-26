@@ -107,6 +107,41 @@ def play_question_audio(question_id, audio_files):
             pygame.mixer.init()  # pygameの音声モジュールを初期化
             pygame.mixer.music.load(audio_file)  # 音声ファイルをロード
             pygame.mixer.music.play()  # 再生
+            # while pygame.mixer.music.get_busy():  # 音声の再生が終了するまで待つ
+            #     pygame.time.Clock().tick(10)
+        except Exception as e:
+            error_message = f"音声ファイルの再生中にエラーが発生しました: {e}"
+            print(error_message)
+            log_to_file(error_message)
+    else:
+        error_message = f"音声ファイルが見つかりません: ID {question_id}"
+        print(error_message)
+        log_to_file(error_message)
+
+
+def preload_audio_files_answer():
+    """音声ファイルを事前に読み込んでリストを作成"""
+    audio_files = {}
+    for i in range(1, 13):
+        audio_file = f"kaitou/kaitou{i}.wav"
+        if os.path.exists(audio_file):
+            audio_files[str(i)] = audio_file
+        else:
+            log_to_file(f"音声ファイルが見つかりません: {audio_file}")
+    return audio_files
+
+
+def play_answer_audio(question_id, audio_files):
+    """問題文に対応する音声ファイルを再生する"""
+    audio_file = audio_files.get(question_id)
+    if audio_file:
+        print(f"問題文の音声を再生します: {audio_file}")
+        log_to_file(f"問題文の音声を再生します: {audio_file}")
+        try:
+            # pygame.mixerを使って音声を再生
+            pygame.mixer.init()  # pygameの音声モジュールを初期化
+            pygame.mixer.music.load(audio_file)  # 音声ファイルをロード
+            pygame.mixer.music.play()  # 再生
             while pygame.mixer.music.get_busy():  # 音声の再生が終了するまで待つ
                 pygame.time.Clock().tick(10)
         except Exception as e:
@@ -124,24 +159,26 @@ def main():
 
     print("\nクイズゲームへようこそ！")
     log_to_file("\nクイズゲームへようこそ！")
+    play_wav_file("effect_sound/intoro.wav")
 
     current_question_number = 0
     status = "syutudai"  # 初期状態は問題出題
     button = Button(18, pull_up=True)
     # 音声ファイルを事前に読み込み
-    audio_files = preload_audio_files()
+    question_audio_files = preload_audio_files()
+    answer_audio_files = preload_audio_files_answer()
 
     while True:
         if status == "syutudai":
             # 状態1: 問題文を提示する状態
             quiz = random.choice(quizzes)
             current_question_number += 1
-
+            play_wav_file("mondai/sengen.wav")
             question_message = f"\n第{current_question_number}問\nクイズ: {quiz['question']}"
             print(question_message)
             log_to_file(question_message)
             # 問題文音声を再生
-            play_question_audio(quiz['id'], audio_files)
+            play_question_audio(quiz['id'], question_audio_files)
 
             input_message = "準備ができたらボタンを押してください。"
             print(input_message)
@@ -160,29 +197,30 @@ def main():
 
             answer = recognize_speech()
             if answer is None:
-                skip_message = "音声入力が認識されなかったため、スキップします。\n"
-                print(skip_message)
-                log_to_file(skip_message)
-                status = "syutudai"
-                continue
-            user_answer = answer.strip()
-            status = "judge"
+                status = "kaitou"
+            else:
+                user_answer = answer.strip()
+                status = "judge"
 
         elif status == "judge":
             # 状態3: 正誤判定状態
             if user_answer == quiz['answer']:
                 play_wav_file("effect_sound/pinpon.wav")
+                play_wav_file("effect_sound/sugoisugoi.wav")
                 correct_message = "正解！\n"
                 print(correct_message)
                 log_to_file(correct_message)
             else:
                 play_wav_file("effect_sound/bubbu.wav")
                 incorrect_message = f"不正解。正解は: {quiz['answer']}\n"
+                play_answer_audio(quiz['id'],answer_audio_files)
                 print(incorrect_message)
                 log_to_file(incorrect_message)
             status = "continue_check"
 
         elif status == "continue_check":
+            time.sleep(2)
+            play_wav_file("effect_sound/continue.wav")
             # 状態4: 続けるかどうかを判定する状態
             print("続けますか？『続ける』『もう一問』『終了』と答えてください。")
             log_to_file("続けますか？『続ける』『もう一問』『終了』と答えてください。")
@@ -202,9 +240,11 @@ def main():
                 status = "syutudai"
             elif next_action == "終了":
                 end_message = "\nゲーム終了！お疲れ様でした！"
+                play_wav_file("effect_sound/catch.wav")
                 print(end_message)
                 log_to_file(end_message)
                 break
+
 
 if __name__ == "__main__":
     main()
