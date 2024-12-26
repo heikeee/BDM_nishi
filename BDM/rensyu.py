@@ -4,6 +4,18 @@ import speech_recognition as sr
 import os
 import sys
 import subprocess
+import time
+from gpiozero import Button
+
+def ButtonPressed(button):
+    isButtonPressed = False  # 基本は押されていない設定
+
+    if button.is_pressed:
+        isButtonPressed = True
+    else:
+        isButtonPressed = False 
+
+    return isButtonPressed
 
 LOG_FILE = "debug_log.txt"  # デバッグ用ログファイル名
 
@@ -60,7 +72,6 @@ def recognize_speech():
             message = "音声入力がタイムアウトしました。"
             print(message)
             log_to_file(message)
-    
             return None
 
 def load_quizzes(csv_file):
@@ -81,6 +92,7 @@ def main():
 
     current_question_number = 0
     status = "syutudai"  # 初期状態は問題出題
+    button = Button(18, pull_up=True)
 
     while True:
         if status == "syutudai":
@@ -92,15 +104,21 @@ def main():
             print(question_message)
             log_to_file(question_message)
 
-            input_message = "準備ができたらEnterキーを押してください。"
-            input(input_message)
+            input_message = "準備ができたらボタンを押してください。"
+            print(input_message)
             log_to_file(input_message)
+            while True:
+                if ButtonPressed(button):
+                    break
+                time.sleep(0.1)
+
+            # input(input_message)
+            
             status = "kaitou"
 
         elif status == "kaitou":
             # 状態2: 解答待機状態
-            print("回答を音声で入力してください。")
-            log_to_file("回答を音声で入力してください。")
+
             answer = recognize_speech()
             if answer is None:
                 skip_message = "音声入力が認識されなかったため、スキップします。\n"
